@@ -9,160 +9,234 @@
     .equ SYS_munmap, 215
     .equ SYS_mremap, 216
     .equ SYS_mmap, 222
+
+    decode_shifts:
+        .align 1
+        .byte 0, 0, 2, 0
     
-    .global transgtca_nuc2pep
-    .global transgtca_pep2nuc
+    .global transgtca_translate
+    .global transgtca_revtranslate
+
+    #define NUCW1  w9
+    #define NUCW2  w10
+    #define NUCW3  w11
+    #define NUCX1  x9
+    #define NUCX2  x10
+    #define NUCX3  x11
+    #define PEPW   w12
+    #define PEPX   x12
+    #define ENCW   w13
+    #define ENCX   x13   
+    #define LENW   w14
+    #define LENX   x14
+
+    #define SPTR   x4
+    #define TPTR   x5
+    #define FPTR   x6
+    #define RPTR   x7
+    #defome LENV   #x0
+
+    #define ARG1   x0
+    #define ARG2   x1
+    #define ARG3   x2
+    #define ARG4   x3
+    #define ARG5   x4
+    #define ARG6   x5
+    #define RETR   x0
+    #define SYSC   x8
+
+    #define CSX1  x25
+    #define CSX2  x26
+    #define CSW1  w25
+    #define CSW2  w26
+
+    #define CRX1  x10
+    #define CRX2  x11
+    #define CRW1  w10
+    #define CRW2  w11
+
+    #define BYTEW   w14
+    #define BYTEX   x14
+
 
 
 .text
 
-// Translate DNA to Protein
+/*           Translate        */
 
 translate_n2p:
-    ldrb w0, [x5], #1       // nuc1 = dna[i] && i++
-    ldrb w1, [x5], #1       // nuc2 = dna[i] && i++
-    ldrb w2, [x5], #1       // nuc3 = dna[i] && i++
+    ldrb NUCW1, [ARG1], #1     
+    ldrb NUCW2, [ARG1], #1  
+    ldrb NUCW3, [ARG1], #1     
 
-    cmp x0, #0
-    b.eq translate_n2p_fin  // finish if nuc1 == 0
+    cmp NUCW1, #0
+    b.eq translate_n2p_fin
 
-    and w0, w0 lsr #1, #3   // 3 & (nuc1 >> 1)
-    and w1, w1 lsr #1, #3   // 3 & (nuc2 >> 1)
-    and w2, w2 lsr #1, #3   // 3 & (nuc3 >> 1)
+    lsr NUCW1, NUCW1, #1  
+    lsr NUCW2, NUCW2, #1  
+    lsr NUCW3, NUCW3, #1   
+    and NUCW1, NUCW1, #3 
+    and NUCW2, NUCW2, #3  
+    and NUCW3, NUCW3, #3 
 
-    mov w8, wzr             // enc_index = 0
-    orr w8, w8, w0 lsl #4   // enc_index |= nuc1 << 4
-    orr w8, w8, w1 lsl #2   // enc_index |= nuc2 << 2
-    orr w8, w8, w2          // enc_index |= nuc3
+    mov ENCW, wzr        
+    orr ENCW, ENCW, NUCW1 lsl #4  
+    orr ENCW, ENCW, NUCW2 lsl #2 
+    orr ENCW, ENCW, NUCW3   
 
-    mov x3, [x6, w8]        // pep = genetic_table[enc_index]
-    str x3, [x7], #1        // result[n] = pep && n++
+    mov PEPW, [ARG2, ENCW]     
+    strb PEPW, [ARG3], #1   
 
-    b.ne translate_n2p      // loop if string is not done
+    b.ne translate_n2p  
 
 translate_n2p_fin:
-    str xzr, [x7], #1       // null-terminate string
+    strb #0, [ARG3], #1 
     ret
 
-transgtca_nuc2pep:
-    str lr, [sp]            // store link register on stack
-    mov x5, x0              // pointer to DNA string
-    mov x6, x1              // pointer to genetic table
 
-    // get strlen, calloc space for result
+transgtca_translate:
+    str lr, [sp, -#8]!            
+    stp CSX1, CSX2, [sp, -16]!
+
+    mov SPTR, ARG1              
+    mov ARG1, SPTR
     bl stlen
-    udiv x0, x0, #3         // divide stlen by 3 to fit 3nuc = 1pep
-    mov x1, #8              // 8 for number of bit in a byte
-    bl dyalloc
-    mov x7, x0              // pointer to result
+    udiv ARG1, ARG1, #3        
+    mov ARG2, #8              
+    bl dynoalloc
+    mov RPTR, RETR              
 
-    mov x0, xzr             // nuc1 = 0
-    mov x1, xzr             // nuc2 = 0
-    mov x2, xzr             // nuc3 = 0
-    mov x3, xzr             // pep = 0
+    mov NUCX1, xzr            
+    mov NUCX2, xzr            
+    mov NUCX3, xzr      
+    mov PEPX, xzr
 
-    str lr, [sp]            // store link register on stack
-    bl translate_n2p
-    
-    ldr lr, [sp]            // load link register back
-    mov x7, x0              // retuurn pointer to result string
+    mov ARG1, SPTR
+    mov ARG2, TPTR
+    mov ARG3, RPTR
+    bl translate_n2p    
+
+    mov RETR, ARG3              
+    ldr CSX1, CSX2, [sp], #16
+    ldr lr, [sp], #8            
     ret
 
 
-// Reverse-Translate Protein to DNA
+/*        Reverse Translate         */
 
 translate_p2n:
-    ldrb x1, [x6], #1       // sc_nuc1 = dna[i] && i++
-    ldrb x2, [x6], #1       // sc_nuc2 = dna[i] && i++
-    ldrb x3, [x6], #1       // sc_nuc3 = dna[i] && i++
+    ldrb PEPW, [ARG1], #1
 
-    ldrb x0, [x5]
+    sub PEPW, #64
+    ldr ENCX, [ARG2, PEPW]
 
-
-transgtca_pep2nuc:
-    strp x12, x13, [sp], -16    // possible triplet 1 & 2
-    strp x14, x15, [sp], -16    // possible triplet 3 & 4
-    strp x16, x17, [sp], -16    // possible triplet 5 & 6
-    strp x18, x19, [sp], -16    // possible triplet 7 & 8
-    strp x20, x21, [sp], -16    // possible triplet 9 & 10
+    ubfx LENW, ENCX, #60, #4
+    mov CRX1, xzr
+translate_p2n_decode_loop:
+    ubfx BYTEX, ENCX, CRX1, #6       
+    add CRX1, CRX1, #6            
+    sub LENW, LENW, #1            
     
-    mov x5, x0              // pointer to original protein string
-    mov x6, x1              // pointer to scrutinized nucleotide string
-    mov x7, x2              // pointer to genetic table
+    ubfx , x14, #0, #2       
+    ubfx x16, x14, #2, #2       
+    ubfx x17, x14, #4, #2       
 
-    mov x0, xzr             // pep = 0
-    mov x1, xzr             // sc_nuc1 = 0
-    mov x2, xzr             // sc_nuc2 = 0
-    mov x3, xzr             // sc_nuc3 = 0
-    mov x4, xzr             // possible_trip_len = 0
-    mov x8, xzr             // non-m
+    and x15, x15, x15, lsl #
 
-    str lr, [sp, -8]        // store link register on stack
-
-    ldr lr, [sp, -8]        // load link register back
+translate_p2n_decode_fin:
 
 
-// in -> x5 = address to string
-// out -> x0 = string length
+transgtca_revtranslate:
+    str lr, [sp, -#8]!            
+    stp CSX1, CSX2, [sp, -16]!
+   
+    mov SPTR, ARG1              
+    mov TPTR, ARG2              
+    mov FPTR, ARG3              
+
+    mov ARG1, SPTR
+    bl stlen
+    mul ARG1, ARG1, #3
+    mov ARG2, #8
+    bl dynoalloc
+    mov RPTR, RETR
+                      
+    mov ENCX, xzr
+    mov NUCX1, xzr            
+    mov NUCX2, xzr            
+    mov NUCX3, xzr  
+    mov PEPX, xzr
+    
+    mov ARG1, SPTR
+    mov ARG2, TPTR
+    mov ARG3, FPTR
+    mov ARG4, RPTR
+    bl translate_p2n
+    
+    
+    ldr CSX1, CSX2, [sp], #16
+    ldr lr, [sp], #8            
+    ret
+
+
+/*          Utils           */
+
 stlen: 
-    str x10, [sp]           // callee-save x10
-    mov x5, x10             // make a copy of str pointer  
-    ldrb w0, [x10], #1      // c = *str++    
-    cmp w0, #0              // c == \0?
-    b.eq strlen_fin         // if so, jump to return
-    b.ne stlen              // otherwise, continue
+    str CSX1, [sp]           
+    mov CSX1, ARG1             
+    ldrb BYTE, [CSX1], #1      
+    cmp BYTE, #0              
+    b.eq strlen_fin         
+    b.ne stlen              
 stlen_fin:
-    sub x0, x10, x5         // len = *str after inc - original *str
-    ldr x10, [sp]           // restore x10
+    sub RETR, CSX1, ARG1         
+    ldr CSX1, [sp]           
     ret
 
 
-// in -> x0 = len; x1 = number of bits
-// out -> x0: new address pointer
-dyalloc:
-    stp x11, x8, [sp], 16   // callee-save x0, x1
-    stp x2, x3, [sp], 16    // callee-save x2, x3
-    stp x4, x5, [sp], 16    // callee-save x4, x5
-    
-    mov x0, x11             // len to x11
-    mul x11, x8             // multiply size by number of bits
 
-    mov x8, SYS_mmap        // mmap syscall to x8
-    mov x0, xzr             // addr = null
-    mov x1, x11             // size = x11
-    mov x2, PROT_RXW        // prot = Read/Exec/Write PROT flag
-    mov x3, MAP_FLAGS       // flags = MAP_FLAGS
-    mov x4, FD_NULL         // fd = -1
-    mov x5, #0              // offset = 0
-    svc #0                  // execute syscall to mmap
+
+dynoalloc:
+    str CSX1, [sp, #8]!
     
-    // now pointer to dynamically-allocated string is in x0
-    stp x4, x5, [sp], 16    // restore x4, x5       
-    stp x2, x3, [sp], 16    // restore x2, x3
-    stp x11, x8, [sp], 16   // restore x0, x1
+    mov CX1, ARG1             
+    mul CX1, CX1, ARG2             
+
+    mov SYSC, SYS_mmap        
+    mov ARG1, xzr             
+    mov ARG2, CX1             
+    mov ARG3, PROT_RXW        
+    mov ARG4, MAP_FLAGS       
+    mov ARG5, FD_NULL         
+    mov ARG6, #0              
+    svc #0                  
+    
+    
+    ldr CSX1, [sp], #8
     ret
 
 
-// in -> x0 = old pointer; x1 = old size; x2 = new size; x3 = number of bits
-// out -> x0 = new pointer
+
+
 dynorealloc:
-    mul x1, x1, x3           // multiply old size by bits num
-    mul x2, x2, x3           /// multiply new size by bitnum
+    mul ARG2, ARG2, ARG4           
+    mul ARG3, ARG3, ARG4      
     
-    mov x8, SYS_mremap      // mremap sycall to x8
-    mov x3, #0              // flags
-    mov x4, xzr             // new addr = null
-    svc #0                  // execute mremap
+    mov SYSC, SYS_mremap      
+    mov ARG4, #0              
+    mov ARG5, xzr             
+    svc #0                  
 
-    // address to reallocated memory is saved in x0
+    
     ret
 
 
-// in -> x0 = address; x1 = size; x2 = bit num
-dynounalloc:
-    mul x1, x1, x2
 
-    mov x8, SYS_munmap       // munmap syscall to x
+
+dynounalloc:
+    mul ARG2, ARG2, ARG3
+
+    mov SYSC, SYS_munmap       
     svc #0
 
     ret
