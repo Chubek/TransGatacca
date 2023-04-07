@@ -11,8 +11,7 @@
     .equ SYS_mmap, 222
 
     decode_shifts:
-        .align 1
-        .byte 0, 0, 2, 0
+        .word 0x47544341
     
     .global transgtca_translate
     .global transgtca_revtranslate
@@ -30,11 +29,10 @@
     #define LENW   w14
     #define LENX   x14
 
-    #define SPTR   x4
-    #define TPTR   x5
-    #define FPTR   x6
-    #define RPTR   x7
-    #defome LENV   #x0
+    #define SPTR   x20
+    #define TPTR   x21
+    #define FPTR   x22
+    #define RPTR   x23
 
     #define ARG1   x0
     #define ARG2   x1
@@ -50,27 +48,27 @@
     #define CSW1  w25
     #define CSW2  w26
 
-    #define CRX1  x10
-    #define CRX2  x11
-    #define CRW1  w10
-    #define CRW2  w11
-
-    #define BYTEW   w14
-    #define BYTEX   x14
-
+    #define CRX1  w15
+    #define CRX2  x16
+    #define CRW1  w16
+    #define CRX2  x16
+   
+    #define BYTEW   w18
+    #define BYTEX   x18
 
 
 .text
 
 /*           Translate        */
 
-translate_n2p:
+// void L_translate_p2n(char *dna, size_t *peptide_lut, char *res)
+L_translate_n2p:
     ldrb NUCW1, [ARG1], #1     
     ldrb NUCW2, [ARG1], #1  
     ldrb NUCW3, [ARG1], #1     
 
     cmp NUCW1, #0
-    b.eq translate_n2p_fin
+    b.eq 1
 
     lsr NUCW1, NUCW1, #1  
     lsr NUCW2, NUCW2, #1  
@@ -87,24 +85,31 @@ translate_n2p:
     mov PEPW, [ARG2, ENCW]     
     strb PEPW, [ARG3], #1   
 
-    b.ne translate_n2p  
+    b.ne L_translate_n2p  
 
-translate_n2p_fin:
+1:
     strb #0, [ARG3], #1 
     ret
 
-
+// char *transgtca(char *dna, size_t *peptide_lut)
 transgtca_translate:
     str lr, [sp, -#8]!            
-    stp CSX1, CSX2, [sp, -16]!
+    stp CSX1, CSX2, [sp, #-16]!
+    stp SPTR, TPTR, [sp, #-16]!
+    stp FPTR, RPTR, [sp, #-16]!
 
-    mov SPTR, ARG1              
+    mov SPTR, ARG1
+    mov TPTR, ARG2
+
     mov ARG1, SPTR
     bl stlen
     udiv ARG1, ARG1, #3        
-    mov ARG2, #8              
+    mov ARG2, #8  
+    stp SPTR, TPTR, [sp, #-16]!
     bl dynoalloc
-    mov RPTR, RETR              
+    ldp SPTR, TPTR, [sp], #16
+    mov RPTR, RETR      
+    ldr ARG2, [sp], #8        
 
     mov NUCX1, xzr            
     mov NUCX2, xzr            
@@ -114,9 +119,11 @@ transgtca_translate:
     mov ARG1, SPTR
     mov ARG2, TPTR
     mov ARG3, RPTR
-    bl translate_n2p    
+    bl L_translate_n2p    
 
-    mov RETR, ARG3              
+    mov RETR, ARG3             
+    ldr FPTR, RPTR, [sp], #16
+    ldr SPTR, TPTR [sp], #16 
     ldr CSX1, CSX2, [sp], #16
     ldr lr, [sp], #8            
     ret
@@ -124,25 +131,27 @@ transgtca_translate:
 
 /*        Reverse Translate         */
 
-translate_p2n:
+
+// void L_translate_p2n(char *protein, size_t *triplets_lut, size_t *freqs_lut, char *res)
+L_translate_p2n:
     ldrb PEPW, [ARG1], #1
     cmp PEPW, #0
-    b.eq translate_p2n_fin
-    b.ne translate_p2n_main
+    b.eq 7
+    b.ne 1
 
     mov CRX1, xzr
     mov CRX2, xzr
     mov CSX1, xzr
     mov CSX2, xzr
 
-translate_p2n_main:
+1:
     sub PEPW, #64
     ldr ENCX, [ARG2, PEPW]
 
     ubfx LENW, ENCX, #60, #4
     mov CRW2, LENW
 
-translate_p2n_loop_body:    
+2:    
     ubfx BYTEX, ENCX, CRX1, #6       
     add CRX1, CRX1, #6            
     sub LENW, LENW, #1            
@@ -161,38 +170,52 @@ translate_p2n_loop_body:
     stp NUCX2, NUCX3 [sp, #-2]!
 
     cmp LENW, #0
-    b.eq translate_p2n_set_trip_main
-    b.ne translate_p2n_loop_body
+    b.eq 3
+    b.ne 2
 
-translate_p2n_set_trip_main:
+3:
     mov CRX1, xzr
     mov CSX1, xzr
     mov CSX2, xzr
 
-translate_p2n_set_trip_loop:   
+4:   
     cmp CRX2, #0
     b.eq translate_n2p_set_trip_fin
-    b.ne translate_p2n_set_trip_loop_body
+    b.ne 5
 
-translate_p2n_set_trip_loop_body:
+5:
     ldp CRX1, NUCX1 [sp], #2
     ldp NUCX2, NUCX3 [sp], #2
     sub CRX2, #1
     cmp CSX1, CSX2
     b.gt translate_p2n_set_trip_temp
-    b.lt translate_p2n_set_trip_loop
+    b.lt 4
 
-translate_p2n_set_trip_fin:
+6:
+    lsl NUCW1, NUCW1, #3
+    lsl NUCW2, NUCW2, #3
+    lsl NUCW3, NUCW3, #3
+    
+    mov CRW1, decode_shifts
+    lsr NUCW1, CRX1, NUCW1
+    lsr NUCW2, CRX1, NUCW2
+    lsr NUCW3, CRX1, NUCW3
+
     strb NUCW1, [ARG4], #1
     strb NUCW2, [ARG4], #1
     strb NUCW3, [ARG4], #1
 
-translate_p2n_fin:
+    bl L_translate_p2n
+
+7:
     ret
 
+// extern char *transgtca_revtranslate(char *protein, size_t *triplets_lut, size_t *freqs_lut)
 transgtca_revtranslate:
     str lr, [sp, -#8]!            
-    stp CSX1, CSX2, [sp, -16]!
+    stp CSX1, CSX2, [sp, #-16]!
+    stp SPTR, TPTR, [sp, #-16]!
+    stp FPTR, RPTR, [sp, #-16]!
    
     mov SPTR, ARG1      
     mov TPTR, ARG2              
@@ -202,7 +225,9 @@ transgtca_revtranslate:
     bl stlen
     mul ARG1, ARG1, #3
     mov ARG2, #8
+    stp SPTR, TPTR, [sp, #-16]!
     bl dynoalloc
+    ldp SPTR, TPTR, [sp], #16
     mov RPTR, RETR
                       
     mov ENCX, xzr
@@ -215,11 +240,10 @@ transgtca_revtranslate:
     mov ARG2, TPTR
     mov ARG3, FPTR
     mov ARG4, RPTR
-    stp CRX1, CRX2, [sp, #-16]!
-    bl translate_p2n
-    ldp CRX1, CRX2, [sp], #16
-    
-    
+    bl L_translate_p2n
+
+    ldr FPTR, RPTR, [sp], #16
+    ldr SPTR, TPTR [sp], #16 
     ldr CSX1, CSX2, [sp], #16
     ldr lr, [sp], #8            
     ret
@@ -227,6 +251,8 @@ transgtca_revtranslate:
 
 /*          Utils           */
 
+
+// stlen(char *null_terminate_str)
 stlen: 
     str CSX1, [sp]           
     mov CSX1, ARG1             
@@ -234,14 +260,14 @@ stlen:
     cmp BYTE, #0              
     b.eq strlen_fin         
     b.ne stlen              
-stlen_fin:
+1:
     sub RETR, CSX1, ARG1         
     ldr CSX1, [sp]           
     ret
 
 
 
-
+// void *dynoalloc(size_t size, size_t bitnum)
 dynoalloc:
     str CSX1, [sp, #8]!
     
@@ -263,7 +289,7 @@ dynoalloc:
 
 
 
-
+// void *dynorealloc(void *ptr, size_t old_size, size_t new_size, size_t bit_num)
 dynorealloc:
     mul ARG2, ARG2, ARG4           
     mul ARG3, ARG3, ARG4      
@@ -276,9 +302,7 @@ dynorealloc:
     
     ret
 
-
-
-
+// void dynounalloc(void *addr, size_t sze, size_t bitnum)
 dynounalloc:
     mul ARG2, ARG2, ARG3
 
