@@ -1,6 +1,7 @@
 .arch armv8-a
 
 .data
+
     .equ NUM_TRPS, 64
     .equ PROT_RXW, 7
     .equ MAP_FLAGS, 22
@@ -10,51 +11,52 @@
     .equ SYS_mremap, 216
     .equ SYS_mmap, 222
 
+    .set NUCW1,  w9
+    .set NUCW2,  w10
+    .set NUCW3,  w11
+    .set NUCX1,  x9
+    .set NUCX2,  x10
+    .set NUCX3,  x11
+    .set PEPW,   w12
+    .set PEPX,   x12
+    .set ENCW,   w13
+    .set ENCX,   x13   
+    .set LENW,   w14
+    .set LENX,   x14
+
+    .set SPTR,   x20
+    .set TPTR,   x21
+    .set FPTR,   x22
+    .set RPTR,   x23
+
+    .set ARG1,   x0
+    .set ARG2,   x1
+    .set ARG3,   x2
+    .set ARG4,   x3
+    .set ARG5,   x4
+    .set ARG6,   x5
+    .set RETR,   x0
+    .set SYSC,   x8
+
+    .set CSX1,  x25
+    .set CSX2,  x26
+    .set CSW1,  w25
+    .set CSW2,  w26
+
+    .set CRX1,  w15
+    .set CRX2,  x16
+    .set CRW1,  w16
+    .set CRX2,  x16
+   
+    .set BYTEW, w18
+    .set BYTEX, x18
+
     decode_shifts:
         .word 0x47544341
     
     .global transgtca_translate
     .global transgtca_revtranslate
 
-    #define NUCW1  w9
-    #define NUCW2  w10
-    #define NUCW3  w11
-    #define NUCX1  x9
-    #define NUCX2  x10
-    #define NUCX3  x11
-    #define PEPW   w12
-    #define PEPX   x12
-    #define ENCW   w13
-    #define ENCX   x13   
-    #define LENW   w14
-    #define LENX   x14
-
-    #define SPTR   x20
-    #define TPTR   x21
-    #define FPTR   x22
-    #define RPTR   x23
-
-    #define ARG1   x0
-    #define ARG2   x1
-    #define ARG3   x2
-    #define ARG4   x3
-    #define ARG5   x4
-    #define ARG6   x5
-    #define RETR   x0
-    #define SYSC   x8
-
-    #define CSX1  x25
-    #define CSX2  x26
-    #define CSW1  w25
-    #define CSW2  w26
-
-    #define CRX1  w15
-    #define CRX2  x16
-    #define CRW1  w16
-    #define CRX2  x16
-   
-    #define BYTEW   w18
-    #define BYTEX   x18
 
 
 .text
