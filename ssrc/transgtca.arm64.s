@@ -126,31 +126,75 @@ transgtca_translate:
 
 translate_p2n:
     ldrb PEPW, [ARG1], #1
+    cmp PEPW, #0
+    b.eq translate_p2n_fin
+    b.ne translate_p2n_main
 
+    mov CRX1, xzr
+    mov CRX2, xzr
+    mov CSX1, xzr
+    mov CSX2, xzr
+
+translate_p2n_main:
     sub PEPW, #64
     ldr ENCX, [ARG2, PEPW]
 
     ubfx LENW, ENCX, #60, #4
-    mov CRX1, xzr
-translate_p2n_decode_loop:
+    mov CRW2, LENW
+
+translate_p2n_loop_body:    
     ubfx BYTEX, ENCX, CRX1, #6       
     add CRX1, CRX1, #6            
     sub LENW, LENW, #1            
     
-    ubfx , x14, #0, #2       
-    ubfx x16, x14, #2, #2       
-    ubfx x17, x14, #4, #2       
+    ubfx NUCX1, BYTEX, #0, #2       
+    ubfx NUCX2, BYTEX, #2, #2       
+    ubfx NUCX3, BYTEX, #4, #2   
 
-    and x15, x15, x15, lsl #
+    mov CSX1, NUCX1
+    orr CSX1, CSX1, NUCX3, lsl #1
+    eor CSX1, CSX1, NUCX3
+    orr CXS1, CSX1, PEPX, lsl #3
 
-translate_p2n_decode_fin:
+    mov CRX1, [ARG3, CSX1]
+    stp CRX1, NUCX1 [sp, #-2]!
+    stp NUCX2, NUCX3 [sp, #-2]!
 
+    cmp LENW, #0
+    b.eq translate_p2n_set_trip_main
+    b.ne translate_p2n_loop_body
+
+translate_p2n_set_trip_main:
+    mov CRX1, xzr
+    mov CSX1, xzr
+    mov CSX2, xzr
+
+translate_p2n_set_trip_loop:   
+    cmp CRX2, #0
+    b.eq translate_n2p_set_trip_fin
+    b.ne translate_p2n_set_trip_loop_body
+
+translate_p2n_set_trip_loop_body:
+    ldp CRX1, NUCX1 [sp], #2
+    ldp NUCX2, NUCX3 [sp], #2
+    sub CRX2, #1
+    cmp CSX1, CSX2
+    b.gt translate_p2n_set_trip_temp
+    b.lt translate_p2n_set_trip_loop
+
+translate_p2n_set_trip_fin:
+    strb NUCW1, [ARG4], #1
+    strb NUCW2, [ARG4], #1
+    strb NUCW3, [ARG4], #1
+
+translate_p2n_fin:
+    ret
 
 transgtca_revtranslate:
     str lr, [sp, -#8]!            
     stp CSX1, CSX2, [sp, -16]!
    
-    mov SPTR, ARG1              
+    mov SPTR, ARG1      
     mov TPTR, ARG2              
     mov FPTR, ARG3              
 
@@ -171,7 +215,9 @@ transgtca_revtranslate:
     mov ARG2, TPTR
     mov ARG3, FPTR
     mov ARG4, RPTR
+    stp CRX1, CRX2, [sp, #-16]!
     bl translate_p2n
+    ldp CRX1, CRX2, [sp], #16
     
     
     ldr CSX1, CSX2, [sp], #16
