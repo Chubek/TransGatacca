@@ -4,6 +4,10 @@
             mov \dst, \src
         .endm
 
+        .macro mmvz dst, src, 
+            movz \dst, \src
+        .endm
+
         .macro mmvs dst, src, shop, shn
             movk \dst, \src, \shop \shn
         .endm
@@ -28,27 +32,11 @@
             eor \dst, \src, \value
         .endm
 
-        .macro mxrs dst, src, value, shop, shn  
-            eors \dst, \src, \value, \shop \shn
-        .endm
-
-        .macro msrl dst, src, value, shop, shn  
-            \shop \dst, \src, \value
-        .endm
-
-        .macro mash dst, src, value, shop, shn  
-            add \dst, \src, \value, \shop \shn
-        .endm
-
-        .macro mssh dst, src, value, shop, shn  
-            sub \dst, \src, \value, \shop \shn
-        .endm
-
         .macro msub dst, src, value  
             sub \dst, \src, \value
         .endm
 
-        .macro madu dst, src, value  
+        .macro madd dst, src, value  
             add \dst, \src, \value
         .endm
 
@@ -101,6 +89,17 @@
             eor \reg, \reg, \reg
         .endm
 
+        .macro mxtr dst, src, mask, shiftamnt
+            and \dst, \src, \mask
+            lsr \dst, \dst, \shiftamnt
+        .endm
+
+        .macro mmvi dst, src
+            .rept 2
+                movk \dst, \src, \src, lsl #1
+                add \dst, \dst, \src
+        .endm
+
     .section transgtca_aliases
         .section transgtca_translate_aliases            
             TRN_DNA_ADDR    .req    x0
@@ -122,8 +121,13 @@
             REV_LOC_NUC1    .req    w8
             REV_LOC_NUC1    .req    w9
             REV_LOC_NUC2    .req    w10
-            REV_LOC_PEPT    .req    w11
-            REV_LOC_TMPN    .req    w12
+            REV_LOC_PEPW    .req    w11
+            REV_LOC_PEPD    .req    x11
+            REV_LOC_ENCD    .req    x12
+            REV_LOC_TMPN    .req    x13
+            REV_LOC_NTRP    .req    x14
+            REV_LOC_NTVI    .req    x15
+            REV_LOC_SIDX    .req    x16
 
 .data
     decodedvals:
@@ -182,41 +186,31 @@ L_translate_p2n:
     MZRO REV_LOC_NUC1
     MZRO REV_LOC_NUC2
     MZRO REV_LOC_NUC3
-    MZRO REV_LOC_PEPT
+    MZRO REV_LOC_PEPD
     MZRO REF_LOC_TMPN
 1:
-    MDPI REV_LOC_PEPT, TRN_PRT_ADDR, ldrb, #1
+    MDPI REV_LOC_PEPW, TRN_PRT_ADDR, ldrb, #1
 
-    MTST REV_LOC_PEPT, REV_LOC_PEPT
+    MTST REV_LOC_PEPW, REV_LOC_PEPW
     MBRC b.ne, 2f, b.eq, 3f  
 
 2:
-    sub PEPW, #64
-    ldr ENCD, [ARG2, PEPW]
+    MSUB REV_LOC_PEPW, REV_LOC_PEPW, #64
+    MDOF REV_LOC_ENCD, REV_LUT_ADDR, ldr, REV_LOC_PRPD
 
-    ubfx LENW, ENCD, #60, #4
-    mov CRW2, LENW
-
-    ubfx BYTED, ENCD, CRD1, #6       
-    add CRD1, CRD1, #6            
-    sub LENW, LENW, #1            
-    
-    ubfx NUCD1, BYTED, #0, #2       
-    ubfx NUCD2, BYTED, #2, #2       
-    ubfx NUCD3, BYTED, #4, #2   
-
-    mov CSD1, NUCD1
-    orr CSD1, CSD1, NUCD3, lsl #1
-    eor CSD1, CSD1, NUCD3
-    orr CDS1, CSD1, PEPD, lsl #3
-
-    mov CRD1, [ARG3, CSD1]
-    stp CRD1, NUCD1 [sp, #-2]!
-    stp NUCD2, NUCD3 [sp, #-2]!
-
-    cmp LENW, #0
-    b.eq 3
-    b.ne 2
+    MXTR REV_LOC_NTRP, REV_LOC_PEPD, #15, #60
+    MMVI REV_LOC_NTVI, REV_LOC_NTRP
+    MPSH REV_LOC_NTRP
+    MMVZ REV_LOC_NTRP, #64
+    MSUB REV_LOC_NTRP, REV_LOC_NTRP, REV_LOC_NTVI
+    MSHR REV_LOC_ENCD, REV_LOC_ENCD, REV_LOC_NTRP
+    MPOP REV_LOC_NTRP
+    MMOV REV_LOC_SIDX, #0
+3:
+    MPSH REV_LOC_ENCD
+    MXTR REV_LOC_ENCD, REV_LOC_ENCD, #63, REV_LOC_SIDX
+    MADD REV_LOC_SIDX, REV_LOC_SIDX, #1
+    MPOP REV_LOC_ENCD
 
 3:
     mov CRD1, xzr
