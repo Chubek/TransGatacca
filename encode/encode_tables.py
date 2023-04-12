@@ -813,12 +813,18 @@ for genetic_code, table in GENETIC_TABLE.items():
     final_encoded_nucs[genetic_code] = [0] * 64
     final_encoded_peps[genetic_code] = [0] * 26
 
-    for peptide, nucleotide_triplets in table.items():
-        final_encoded_peps[genetic_code][peptide -
-                                         65] |= len(nucleotide_triplets) << 60
+    for peptide, nucleotide_triplets in table.items():        
         for i, trip in enumerate(nucleotide_triplets):
             indx = (encode_single_nuc(trip[0]) << 4) & 0xff
             indx |= (encode_single_nuc(trip[1]) << 2) & 0xff
             indx |= encode_single_nuc(trip[2])
             final_encoded_nucs[genetic_code][indx] = peptide
-            final_encoded_peps[genetic_code][peptide - 65] |= (indx << (i * 6))
+            final_encoded_peps[genetic_code][ord(peptide) - 65] |= (indx << ((10 - i) * 6))
+
+        final_encoded_peps[genetic_code][ord(peptide) - 65] <<= 4
+        final_encoded_peps[genetic_code][ord(peptide) - 65] |= len(nucleotide_triplets)
+
+
+import json
+with open("encoded_codons_revtable.json", "w") as fw:
+    fw.write(json.dumps(final_encoded_peps))
