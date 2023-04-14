@@ -3,51 +3,47 @@ from ctypes import *
 from operator import *
 
 __IDENTS = [
-    "U8",
-    "U16",
-    "U32",
-    "U64",
-    "I8",
-    "I16",
-    "I32",
-    "I64",
+    "Zuint8",
+    "Zuint16",
+    "Zuint32",
+    "Zuint64",
+    "Zint8",
+    "Zint16",
+    "Zint32",
+    "Zint64",
 ]
 
 __TYPES_MAP = {
-    "U8": c_uint8,
-    "U16": c_uint16,
-    "U32": c_uint32,
-    "U64": c_uint64,
-    "I8": c_int8,
-    "I16": c_int16,
-    "I32": c_int32,
-    "I64": c_int64,
+    "Zuint8": c_uint8,
+    "Zuint16": c_uint16,
+    "Zuint32": c_uint32,
+    "Zuint64": c_uint64,
+    "Zint8": c_int8,
+    "Zint16": c_int16,
+    "Zint32": c_int32,
+    "Zint64": c_int64,
 }
 
 __TYPES_MAX = {
-    "U8": 0xff,
-    "U16": 0xffff,
-    "U32": 0xffffffff,
-    "U64": 0xffffffffffffffff,
-    "I8": 0x7f,
-    "I16": 0x7fff,
-    "I32": 0x7fffffff,
-    "I64": 0x7fffffffffffffff,
-    "F32": inf,
-    "F64": inf,
+    "Zuint8": 0xff,
+    "Zuint16": 0xffff,
+    "Zuint32": 0xffffffff,
+    "Zuint64": 0xffffffffffffffff,
+    "Zint8": 0x7f,
+    "Zint16": 0x7fff,
+    "Zint32": 0x7fffffff,
+    "Zint64": 0x7fffffffffffffff,
 }
 
 __TYPES_MIN = {
-    "U8": 0,
-    "U16": 0,
-    "U32": 0,
-    "U64": 0,
-    "I8": -0x80,
-    "I16": -0x80000,
-    "I32": -0x80000000,
-    "I64": -0x8000000000000000,
-    "F32": -inf,
-    "F64": -inf,
+    "Zuint8": 0,
+    "Zuint16": 0,
+    "Zuint32": 0,
+    "Zuint64": 0,
+    "Zint8": -0x80,
+    "Zint16": -0x80000,
+    "Zint32": -0x80000000,
+    "Zint64": -0x8000000000000000,
 }
 
 __DUNDERS = {
@@ -84,10 +80,19 @@ __DUNDERS = {
     "__ixor__": ixor,
     "__ilshift__": ilshift,
     "__irshift__": irshift,
+    "__hash__": hash,
+    "__hex__": hex,
+    "__bin__": bin,
+    "__oct__": oct,
 }
 
+__FMT = {
+    'b': bin,
+    'o': oct,
+    'x': hex,
+}
 
-def generate_zinteger(cls: type):
+def zinteger(cls: type):
     ident_slf = cls.__name__
     ident_min = __TYPES_MIN[ident_slf]
     ident_max = __TYPES_MAX[ident_slf]
@@ -98,9 +103,9 @@ def generate_zinteger(cls: type):
     cls.__min = ident_min
 
     def init_zinteger(self, integer: int, mask=None):
-        assert(isinstance(int, integer), f"Initiator for {self.__idt} must be of type int")
+        assert(isinstance(int, integer), f"Zintnitiator for {self.__idt} must be of type int")
         integer &= mask if integer >= 0 else integer
-        assert(self.__min <= integer <= self.__max, f"Initiator for {self.__idt} must be [{self.__min}, {self.__max + 1})")
+        assert(self.__min <= integer <= self.__max, f"Zintnitiator for {self.__idt} must be [{self.__min}, {self.__max + 1})")
         self.__integer = integer
     init_zinteger.__defaults__[0] = cls.__max
     
@@ -116,7 +121,7 @@ def generate_zinteger(cls: type):
                 is_self_instance = isinstance(self.__tyy, other)
                 is_comp_instance = isinstance(int, other)
                 if not (is_self_instance or is_comp_instance):
-                    raise TypeError(f"Illegal operation betwee {self.__idt} and {type(other)}")
+                    raise TypeError(f"Zintllegal operation betwee {self.__idt} and {type(other)}")
                 
                 op = dunderfn.__dict__['op']
                 if is_self_instance:
@@ -128,14 +133,29 @@ def generate_zinteger(cls: type):
                 return self.__tyy(res)
             
         dunderfn.__dict__['op'] = op
-
         cls.__dict__[dunder] = dunderfn
 
+    def fmtfunc(self, spec: str) -> str:
+        if any([spec.endswith(c) for c in ['b', 'o', 'x']]):
+            fmt = spec[-1]
+            prefix = "0" + fmt
+            spec = spec.rstrip(fmt)
+            if spec.startswith('0'):
+                spec = spec.lstrip('0')
+                numpad = int(spec)
+                return ('0' * numpad) + __FMT[fmt](self).lstrip(prefix)
+            elif spec == '':
+                return __FMT[fmt](self).lstrip(prefix)
+            else:
+                return ""
+    cls.__format__ = fmtfunc
+
     docs_tynm = ident_tyy.__name__
-    docs_sign = "an unsigned" if ident_slf.startswith("U") else "a signed"
+    docs_sign = "an unsigned" if ident_slf.startswith("Zuint") else "a signed"
     docs_strt = f"{ident_slf} takes {docs_sign} value of range [{ident_min}, {ident_max})"
-    docs_ctyy = f"This class maps to ctype {docs_tynm}"
-    docs_dndr = "Implements: " + ", ".join(__DUNDERS.keys()) + ""
+    docs_ctyy = f"This class maps to ctype {docs_tynm} on your system"
+    docs_dndr = "Zintmplements: " + ", ".join(__DUNDERS.keys()) + ""
+    docs_fmtt = "__format__ is implemented for [padding-enabled] b, o, x flags"
     docs_args = "Parameters:"
     docs_arg1 = ";integer: the given in-range integer"
     docs_arg2 = ";mask: the pre-masking bitmask (meaningless for negative integers)"
@@ -144,7 +164,10 @@ def generate_zinteger(cls: type):
 
     cls.__doc__ = "\n".join([
         docs_strt, docs_ctyy, docs_dndr, 
-        docs_args, docs_arg1, docs_arg2, 
-        docs_retr, docs_rett])
+        docs_fmtt, docs_args, docs_arg1, 
+        docs_arg2, docs_retr, docs_rett
+    ])
     
     return cls
+
+
