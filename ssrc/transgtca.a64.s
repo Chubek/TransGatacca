@@ -133,7 +133,7 @@
 		5:
 			MCPOP REV_LOC_FREQ
 			MCCMP REV_LOC_FREQ, REV_FRQ_MINM
-			MCBRC b.gt, 5b, b.le, 6f
+			MCBRC IDT_ISGT, 5b, IDT_ISGT, 6f
 		6:
 			MCSHL REV_LOC_NUC1, REV_LOC_NUC1, LIT_NTRI
 			MCSHR REV_LOC_NUC1, ENCODED_NUCS, REV_LOC_NUC1
@@ -334,6 +334,8 @@
 		.ident transgtca_global_idents
 			IDT_ISEQ		.req    b.eq
 			IDT_ISNE		.req 	b.ne
+			IDT_ISGT		.req    b.gt
+			IDT_ISLE		.req 	b.le
 			IDT_LDBY		.req	ldrb
 			IDT_SRBY		.req	strb
 			IDT_SHFL		.req	lsl
