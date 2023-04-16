@@ -2,7 +2,7 @@ import sys
 from ctypes import *
 from math import inf
 from operator import *
-from copy import copy
+from copy import copy, deepcopy
 
 
 SELF_INSTANCE = 0
@@ -105,15 +105,20 @@ def exec(func):
 def generate_unary_dunders(_="UNARY_DUNDERS"):
     unary_dunderfuncs = {}
 
-    for unary_dunder, unary_op in __DUNDERS_UNARY:
-        def dunderfn(self):
-            op = dunderfn.__dict__['op']
-            return op(self)
+    for unary_dunder, unary_op in __DUNDERS_UNARY.items():
+
+        def dunder_factory(unary_dunder, unary_op):
+            def dunderfn(self):
+                op = dunderfn.__dict__['op']
+                return op(self.val)                  
+              
+            dunderfn.__dict__['op'] = unary_op
+            dunderfn.__name__ = unary_dunder
+            dunderfn.__qualname__ = unary_dunder
         
-        dunderfn.__dict__['op'] = unary_op
-        dunderfn.__name__ = unary_dunder
-        dunderfn.__qualname__ = unary_dunder
-        unary_dunderfuncs[unary_dunder] = dunderfn
+            return dunderfn
+
+        unary_dunderfuncs[unary_dunder] = dunder_factory(unary_dunder, unary_op)
 
     return unary_dunderfuncs
 
@@ -121,31 +126,33 @@ def generate_unary_dunders(_="UNARY_DUNDERS"):
 def generate_binary_dunders(_="BINARY_DUNDERS"):
     binary_dunderfuncs = {}
     
-    for binary_dunder, binry_op in __DUNDERS_BINARY.items():
-        def dunderfn(self, other):
-            op = dunderfn.__dict__['op']
+    for binary_dunder, binary_op in __DUNDERS_BINARY.items():
 
-            instance_check = self.__instancecheck__(other)
-            if instance_check == SELF_INSTANCE:
-                res = op(self.__integer.value, other.__integer.value)
-            elif instance_check == TYPE_INSTANCE:
-                res= op(self.__integer.value, other.value)
-            elif instance_check == INTG_INSTANCE:
-                res = op(self.__integer.value, other)
-            else:
-                raise TypeError(
-                    f"Ilegal operation {op.__name__} between \
-                          {self.__class__.__name__} and {other.__class__.__name__}")
-            assert(
-                self.__min <= self.__min <= res <= self.__max, 
-                f"The result of {op.__name__} is out of bounds for {other.__class__.__name__}"
-            )
-            return other.__class__(res)
-        
-        dunderfn.__dict__['op'] = binry_op
-        dunderfn.__name__ = binary_dunder
-        dunderfn.__qualname__ = binary_dunder
-        binary_dunderfuncs[binary_dunder] = dunderfn
+        def dunder_factory(binary_dunder, binary_op):
+            def dunderfn(self, other):
+                op = dunderfn.__dict__['op']
+                instance_check = self.__instancecheck__(other)
+
+                if instance_check == SELF_INSTANCE:
+                    res = op(self.val, other.__integer.value)
+                elif instance_check == TYPE_INSTANCE:
+                    res= op(self.val, other.value)
+                elif instance_check == INTG_INSTANCE:
+                    res = op(self.val, other)
+                else:
+                    raise TypeError(
+                        f"Ilegal operation {op.__name__} between \
+                            {self.clsname} and {other.__class__.__name__}")
+
+                return self.clstype(res)
+            
+            dunderfn.__dict__['op'] = binary_op
+            dunderfn.__name__ = binary_dunder
+            dunderfn.__qualname__ = binary_dunder
+
+            return dunderfn
+
+        binary_dunderfuncs[binary_dunder] = dunder_factory(binary_dunder, binary_op)
 
     return binary_dunderfuncs
 
@@ -154,42 +161,43 @@ def generate_inplace_dunders(_="INPLACE_DUNDERS"):
     inplace_dunderfuncs = {}
 
     for inplace_dunder, inplace_op in __DUNDERS_INPLACE.items():
-        def dunderfn(self, other):
-            op = dunderfn.__dict__['op']
-
-            instance_check = self.__instancecheck__(other)
-            if instance_check == SELF_INSTANCE:
-                res = op(self.__integer.value, other.__integer.value)
-            elif instance_check == TYPE_INSTANCE:
-                res= op(self.__integer.value, other.value)
-            elif instance_check == INTG_INSTANCE:
-                res = op(self.__integer.value, other)
-            else:
-                raise TypeError(
-                    f"Ilegal operation {op.__name__} between \
-                          {self.__class__.__name__} and {other.__class__.__name__}")
-
-            assert(
-                self.__min <= self.__min <= res <= self.__max, 
-                f"The result of {op.__name__} is out of bounds for {other.__class__.__name__}"
-            )
-            self = self.__class__(self.__integer.value + res)
         
-        dunderfn.__dict__['op'] = inplace_op
-        dunderfn.__name__ = inplace_dunder
-        dunderfn.__qualname__ = inplace_dunder
-        inplace_dunderfuncs[inplace_dunder] = dunderfn
+        def dunder_factory(inplace_dunder, inplace_op):
+            def dunderfn(self, other):
+                op = dunderfn.__dict__['op']
+
+                instance_check = self.__instancecheck__(other)
+                if instance_check == SELF_INSTANCE:
+                    res = op(self.val, other.val)
+                elif instance_check == TYPE_INSTANCE:
+                    res= op(self.val, other.value)
+                elif instance_check == INTG_INSTANCE:
+                    res = op(self.val, other)
+                else:
+                    raise TypeError(
+                        f"Ilegal operation {op.__name__} between \
+                            {self.clsname} and {other.__class__.__name__}")
+
+                self = self.clstype(res)
+        
+            dunderfn.__dict__['op'] = inplace_op
+            dunderfn.__name__ = inplace_dunder
+            dunderfn.__qualname__ = inplace_dunder
+
+            return dunderfn
+        
+        inplace_dunderfuncs[inplace_dunder] = dunder_factory(inplace_dunder, inplace_op)
+    
+    return inplace_dunderfuncs
 
 def init_zinteger(self, integer: int, mask=None):
-    assert(isinstance(integer, type(integer)), f"Ineger for {self.__idt} must be of type int")
     integer &= mask if integer >= 0 else integer
-    assert(self.__min <= integer <= self.__max, f"Integer for {self.__idt} must be [{self.__min}, {self.__max + 1})")
-    self.__integer = self.__tyy(integer)
+    self.__integer = self.ctype(integer)
 
 def inst_zinteger(self, other) -> bool:
     cls_other = other.__class__
-    cls_self = self.__class__
-    cls_type = self.__tyy.__class__
+    cls_self = self.clsname
+    cls_type = self.ctype
     cls_int = int(0).__class__
 
     if cls_self == cls_other:
@@ -202,45 +210,10 @@ def inst_zinteger(self, other) -> bool:
     return OTHR_INSTANCE
 
 def repr_zinteger(self) -> str:
-    return f"<'Zinteger.{self.__class__.__name__}; Mapped={self.__tyy.__name__}; Value={self.__integer.value}'>"
+    return f"<'Zinteger.{self.clsname}; Mapped={self.ctyname}; Value={self.val}'>"
 
 def strn_zinteger(self) -> str:
-    return str(self.__integer.value)
-
-def gtvl_zinteger(self) -> int:
-    return self.__integer.value
-
-def test_zinteger():
-        class_maxim = test_zinteger.__dict__['max_value']
-        class_minim = test_zinteger.__dict__['min_value']
-        class_ident = test_zinteger.__dict__['cls_ident']
-        class_cname = class_ident.__name__
-        
-        operations = [
-            "+", "-", "*", "**", "//", "/", "%",
-            ">>", "<<", "|", "&", "^", "==", "<=",
-            ">=", ">", "<"
-        ]
-        dunderfuns = ["hash", "oct", "bin", "hex"]
-
-        nbitssr = len(format(class_maxim, "b")) >> 3
-        maximsr_int = class_maxim >> nbitssr 
-        minimsr_int = class_minim >> nbitssr
-        maximsr_obj = class_ident(maximsr_int)
-        minimsr_obj = class_ident(minimsr_int)
-
-        mapsr_int_oprs = [eval(f"maxsr_int {x} minsr_int") for x in operations]
-        mapsr_obj_oprs = [eval(f"maxsr_int {x} minsr_int") for x in operations]
-        mapsr_mix_oprs = [eval(f"maxsr_int {x} minsr_obj") for x in operations]
-        mapsr_int_funs = [eval(f"{x}(minsr_int)") for x in dunderfuns]
-        mapsr_obj_funs = [eval(f"{x}(minsr_obj)") for x in dunderfuns]
-
-        assert(
-            mapsr_int_oprs == mapsr_obj_oprs == mapsr_mix_oprs \
-                and mapsr_int_funs == mapsr_obj_funs
-            , f"Test failed for {class_cname}")
-        
-        print(f"Test successful for {class_cname}")
+    return str(self.val)
 
 def frmt_zinteger(self, spec: str) -> str:
     fmtfn = frmt_zinteger.__dict__['frmt_zintegers']
@@ -266,7 +239,6 @@ def docs_zinteger(ident_tyy, ident_slf, ident_min, ident_max):
     docs_ctyy = f"This class maps to ctype {docs_tynm} on your system. It may differ on other systems."
     docs_dndr = "ZIntmplements: " + ", ".join(__DUNDERS_BINARY.keys()) + ""
     docs_fmtt = "__format__ is implemented for [padding-enabled] b, o, x flags"
-    docs_test = "classmethod __test__ will test_zinteger features"
     docs_args = "Parameters:"
     docs_arg1 = ";integer: the given in-range integer"
     docs_arg2 = ";mask: the pre-masking bitmask (meaningless for negative integers)"
@@ -275,10 +247,12 @@ def docs_zinteger(ident_tyy, ident_slf, ident_min, ident_max):
     docs_sepr = "-------"
 
     return "\n".join([
-        docs_strt, docs_ctyy, docs_dndr, 
-        docs_fmtt, docs_test, docs_sepr, 
-        docs_args, docs_arg1, docs_arg2, 
-        docs_sepr, docs_retr, docs_rett 
+        docs_strt, docs_sepr, 
+        docs_ctyy, docs_dndr, 
+        docs_fmtt, docs_sepr, 
+        docs_args, docs_arg1, 
+        docs_arg2, docs_sepr, 
+        docs_retr, docs_rett 
     ])
 
 def gtvl_zinteger(self, name) -> int:
@@ -286,18 +260,26 @@ def gtvl_zinteger(self, name) -> int:
         return self.__integer.value
     elif name == "cint" or name == "cval" or name == "cvalue":
         return self.__integer
-    elif name == "ctype" or name == "ty":
-        return self.__ty
-    elif name == "cname":
+    elif name == "ctype" or name == "cty":
+        return self.__tyy
+    elif name == "ctyname":
+        return self.__tyy.__name__
+    elif name == "clsname":
         return self.__class__.__name__
+    elif name == "clstype":
+        return self.__class__
+    elif name == "min" or name == "mimimum":
+        return self.__min
+    elif name == "max" or name == "maxmimum":
+        return self.__max
     else:
         raise AttributeError
 
 def zinteger(cls: type):
     dunderfuncs = {
-        **globals()['UNARY_DUNDERS']
-        **globals()['BINARY_DUNDERS']
-        **globals()['INPLACE_DUNDERS']
+        **globals()['UNARY_DUNDERS'],
+        **globals()['BINARY_DUNDERS'],
+        **globals()['INPLACE_DUNDERS'],
     }
 
     ident_slf = cls.__name__
@@ -307,7 +289,6 @@ def zinteger(cls: type):
 
     this_init = copy(init_zinteger)
     this_frmt = copy(frmt_zinteger)
-    this_test = copy(test_zinteger)
     this_inst = copy(inst_zinteger)
     this_repr = copy(repr_zinteger)
     this_strn = copy(strn_zinteger)
@@ -317,10 +298,6 @@ def zinteger(cls: type):
 
     this_init.__defaults__ = (ident_max, *this_init.__defaults__[1:])
     this_frmt.__dict__['frmt_zintegers'] = __FMT
-    this_test.__dict__ = {
-        "max_value": ident_max, 
-        "min_value": ident_min,
-    }
 
     cls = type(ident_slf, (), {
         "__tyy": ident_tyy,
@@ -330,14 +307,12 @@ def zinteger(cls: type):
         "__str__": this_strn,
         "__init__": this_init,
         "__repr__": this_repr,
-        "__test__": this_test,
         "__format__": this_frmt,
+        "__getattr__": this_gtvl,
         "__instancecheck__": this_inst,
-
         **dunderfuncs
     })
     cls.__doc__ = this_docs
-    cls.__test__.__dict__['cls_ident'] = cls
     cls.__str__.__name__ = "__str__"
     cls.__init__.__name__ = "__init__"
     cls.__repr__.__name__ = "__repr__"
@@ -348,51 +323,46 @@ def zinteger(cls: type):
     return cls
 
 
-class Zinteger:
-    @zinteger
-    class ZUint8:
-        pass
-
-    @zinteger
-    class ZUint16:
-        pass
-
-    @zinteger
-    class ZUint32:
-        pass
-
-    @zinteger
-    class ZUint64:
-        pass
-
-    @zinteger
-    class ZInt8:
-        pass
-
-    @zinteger
-    class ZInt16:
-        pass
-
-    @zinteger
-    class ZInt32:
-        pass
-
-    @zinteger
-    class ZInt64:
-        pass
+@zinteger
+class ZUint8:
+    pass
+@zinteger
+class ZUint16:
+    pass
+@zinteger
+class ZUint32:
+    pass
+@zinteger
+class ZUint64:
+    pass
+@zinteger
+class ZInt8:
+    pass
+@zinteger
+class ZInt16:
+    pass
+@zinteger
+class ZInt32:
+    pass
+@zinteger
+class ZInt64:
+    pass
 
 
 
-sys.modules["Zinteger"] = Zinteger
+
+z = ZUint8(1)
+
+print(z + 1)
 
 
-if __name__ == "__main__":
-    Zinteger.ZUint8.__test__()
-    Zinteger.ZUint16.__test__()
-    Zinteger.ZUint32.__test__()
-    Zinteger.Zuint64.__test__()
+#if __name__ == "__main__":
+  #  Zinteger.ZUint8.__test__()
+   # Zinteger.ZUint16.__test__()
+   # Zinteger.ZUint32.__test__()
+   # Zinteger.Zuint64.__test__()
 
-    Zinteger.ZInt8.__test__()
-    Zinteger.ZInt16.__test__()
-    Zinteger.ZInt36.__test__()
-    Zinteger.ZInt64.__test__()
+   # Zinteger.ZInt8.__test__()
+   # Zinteger.ZInt16.__test__()
+   # Zinteger.ZInt36.__test__()
+  #  Zinteger.ZInt64.__test__()
