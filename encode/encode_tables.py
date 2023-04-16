@@ -891,21 +891,22 @@ if __name__ == "__main__":
     fnuc = open(file_nuc, "w")
     fpep = open(file_pep, "w")
     if cmd.startswith("c"):
+        print("{", file=fnuc)
+        print("{", file=fpep)
         for i in range(37):
-            print("{", file=fnuc)
-            print("{", file=fpep)
+
             if str(i) in encd_nucs:
                 gtable_enc = encd_nucs[str(i)]
                 print(
-                    "{ ", ", ".join([map(str, gtable_enc)]), " },", file=fnuc)
+                    "{", ", ".join(list(map(str, gtable_enc))), "},", file=fnuc)
                 gtable_enc = encd_peps[str(i)]
                 print(
-                    "{ ", ", ".join([map(str, gtable_enc)]), " },", file=fpep)
+                    "{", ", ".join(list(map(str, gtable_enc))), "},", file=fpep)
             else:
                 print("ARR_ZERO_64,", file=fnuc)
                 print("ARR_ZERO_26,", file=fpep)
-            print("}", file=fnuc)
-            print("}", file=fpep)
+        print("}", file=fnuc)
+        print("}", file=fpep)
     elif cmd.startswith("j"):
         encd_nucs["Method"] = __METHOD_DOC_NUC
         encd_peps["Method"] = __METHOD_DOC_PEP
