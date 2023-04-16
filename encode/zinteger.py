@@ -65,8 +65,8 @@ __DUNDERS_BINARY = {
     "__and__": and_,
     "__or__": or_,
     "__xor__": xor,
-    "__lshift__": lshift,
-    "__rshift__": rshift,
+    "__lshiftr__": lshift,
+    "__rshiftr__": rshift,
     "__lt__": lt,
     "__le__": le,
     "__eq__": eq,
@@ -86,8 +86,8 @@ __DUNDERS_INPLACE = {
     "__iand__": iand,
     "__ior__": ior,
     "__ixor__": ixor,
-    "__ilshift__": ilshift,
-    "__irshift__": irshift,
+    "__ilshiftr__": ilshift,
+    "__irshiftr__": irshift,
 }
 
 
@@ -175,8 +175,7 @@ def generate_inplace_dunders(_="INPLACE_DUNDERS"):
                     res = op(self.val, other)
                 else:
                     raise TypeError(
-                        f"Ilegal operation {op.__name__} between \
-                            {self.clsname} and {other.__class__.__name__}")
+                        f"Ilegal operation {op.__name__} between {self.clsname} and {other.__class__.__name__}")
 
                 self = self.clstype(res)
         
@@ -190,13 +189,26 @@ def generate_inplace_dunders(_="INPLACE_DUNDERS"):
     
     return inplace_dunderfuncs
 
-def init_zinteger(self, integer: int, mask=None):
+def init_zinteger(self, integer: int, mask=None, warn=True, abort=False):
     integer &= mask if integer >= 0 else integer
+
+    if warn or abort:
+        do_exit = 0
+        if integer > self.max:
+            print(f'\033[1;33mWarning:\033[0m Overflow for {self.clsname}')
+            do_exit = "overflow"
+        if integer < self.min:
+            print(f'\033[1;33mWarning:\033[0m Underflow for {self.clsname}')
+            do_exit = "underflow"
+        if do_exit:
+            print(f"Exiting due to {do_exit}...")
+            exit(1)
+
     self.__integer = self.ctype(integer)
 
 def inst_zinteger(self, other) -> bool:
     cls_other = other.__class__
-    cls_self = self.clsname
+    cls_self = self.clstype
     cls_type = self.ctype
     cls_int = int(0).__class__
 
@@ -231,6 +243,76 @@ def frmt_zinteger(self, spec: str) -> str:
             return ""
     return ""
 
+
+def gtvl_zinteger(self, name: str) -> int:
+    if name.startswith("val") or name.startswith("int"):
+        return self.__integer.value
+    elif name.startswith("cint") or name.startswith("cval"):
+        return self.__integer
+    elif name.startswith("cty"):
+        return self.__tyy
+    elif name.startswith("ctyname"):
+        return self.__tyy.__name__
+    elif name.startswith("clsn") or name == "cnm":
+        return self.__class__.__name__
+    elif name.startswith("clst") or name == "clt":
+        return self.__class__
+    elif name.startswith("min"):
+        return self.__min
+    elif name.startswith("max"):
+        return self.__max
+    elif name.startswith("nb"):
+        return len(format(self.__max, "b"))
+    elif name.startswith("test"):
+        return self(0).__test__
+    else:
+        raise AttributeError
+    
+def test_zinteger(self):
+    cls_maxm = self.max
+    cls_minm = self.min
+    cls_nbit = self.nbt
+    cls_name = self.cnm
+    cls_self = self.clt
+
+    operators = [
+        "+", "-", "*", "**", "/", "//"
+        "%", "^", "|", "&", "<<", ">>",
+        ">=", "<=", "==", "!=", ">", "<"
+    ]
+
+    functions = [
+        hex, bin, oct, hash
+    ]
+
+    shiftr_nbits = cls_nbit << 3
+    shiftr_maxim_int = cls_maxm << shiftr_nbits
+    shiftr_minim_int = cls_minm << shiftr_nbits
+    shiftr_maxim_obj = cls_self(shiftr_maxim_int)
+    shiftr_minim_obj = cls_self(shiftr_minim_int)
+
+    for op in operators:
+        eval_int = eval(f"shiftr_maxim_int {op} shiftr_minim_int")
+        eval_obj = eval(f"shiftr_maxim_obj {op} shiftr_minim_obj")
+        eval_min = eval(f"shiftr_maxim_int {op} shiftr_minim_obj")
+
+        if eval_int == eval_obj.int == eval_min.val:
+            print(f"{op} ok for {cls_name}")
+        else:
+            print(f"{op} fail for {cls_name}")
+
+    for fn in functions:
+        eval_int = fn(shiftr_maxim_int)
+        eval_obj = fn(shiftr_minim_int)
+
+        if eval_int == eval_obj:
+            print(f"{fn} ok for {cls_name}")
+        else:
+            print(f"{fn} fail for {cls_name}")
+
+    print(f"Test done for {cls_name}")
+
+
 def docs_zinteger(ident_tyy, ident_slf, ident_min, ident_max):
     docs_tynm = ident_tyy.__name__
     docs_sign = "an unsigned" if ident_slf.startswith("ZUint") else "a signed"
@@ -255,26 +337,6 @@ def docs_zinteger(ident_tyy, ident_slf, ident_min, ident_max):
         docs_retr, docs_rett 
     ])
 
-def gtvl_zinteger(self, name) -> int:
-    if name == "value" or name == "val" or name == "int":
-        return self.__integer.value
-    elif name == "cint" or name == "cval" or name == "cvalue":
-        return self.__integer
-    elif name == "ctype" or name == "cty":
-        return self.__tyy
-    elif name == "ctyname":
-        return self.__tyy.__name__
-    elif name == "clsname":
-        return self.__class__.__name__
-    elif name == "clstype":
-        return self.__class__
-    elif name == "min" or name == "mimimum":
-        return self.__min
-    elif name == "max" or name == "maxmimum":
-        return self.__max
-    else:
-        raise AttributeError
-
 def zinteger(cls: type):
     dunderfuncs = {
         **globals()['UNARY_DUNDERS'],
@@ -293,32 +355,36 @@ def zinteger(cls: type):
     this_repr = copy(repr_zinteger)
     this_strn = copy(strn_zinteger)
     this_gtvl = copy(gtvl_zinteger)
+    this_test = copy(test_zinteger)
 
     this_docs = docs_zinteger(ident_tyy, ident_slf, ident_min, ident_max)
 
     this_init.__defaults__ = (ident_max, *this_init.__defaults__[1:])
     this_frmt.__dict__['frmt_zintegers'] = __FMT
 
-    cls = type(ident_slf, (), {
-        "__tyy": ident_tyy,
-        "__min": ident_min,
-        "__max": ident_max,
-        "__idt": ident_slf,
-        "__str__": this_strn,
-        "__init__": this_init,
-        "__repr__": this_repr,
-        "__format__": this_frmt,
-        "__getattr__": this_gtvl,
-        "__instancecheck__": this_inst,
-        **dunderfuncs
-    })
+    cls = type(
+        ident_slf, 
+        (), {
+            "__tyy": ident_tyy,
+            "__min": ident_min,
+            "__max": ident_max,
+            "__idt": ident_slf,
+            "__str__": this_strn,
+            "__init__": this_init,
+            "__repr__": this_repr,
+            "__test__": this_test,
+            "__format__": this_frmt,
+            "__getattr__": this_gtvl,
+            "__instancecheck__": this_inst,
+            **dunderfuncs
+        }
+    )
     cls.__doc__ = this_docs
     cls.__str__.__name__ = "__str__"
     cls.__init__.__name__ = "__init__"
     cls.__repr__.__name__ = "__repr__"
     cls.__format__.__name__ = "__format__"
     cls.__instancecheck__.__name__ = "__instancecheck__"
-    cls.__qualname__ = "Zinteger." + ident_slf
 
     return cls
 
@@ -347,22 +413,3 @@ class ZInt32:
 @zinteger
 class ZInt64:
     pass
-
-
-
-
-z = ZUint8(1)
-
-print(z + 1)
-
-
-#if __name__ == "__main__":
-  #  Zinteger.ZUint8.__test__()
-   # Zinteger.ZUint16.__test__()
-   # Zinteger.ZUint32.__test__()
-   # Zinteger.Zuint64.__test__()
-
-   # Zinteger.ZInt8.__test__()
-   # Zinteger.ZInt16.__test__()
-   # Zinteger.ZInt36.__test__()
-  #  Zinteger.ZInt64.__test__()
