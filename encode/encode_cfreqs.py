@@ -683,7 +683,7 @@ if __name__ == "__main__":
             print("[ ", ", ".join(map(str, freq)) + " ],", file=ffrq)
         print("]", file=ffrq)
 
-        print("LUT = [ ", ", ".join(map(lambda x: f'{x}', lut)) + " ],", file=ffrq)
+        print("LUT = [ ", ", ".join(map(lambda x: f'"{x}"', lut)) + " ],", file=ffrq)
     elif cmd.startswith("j"):
         combined = {k: freqs[lut.index(k)] for k in lut}
         ffrq.write(json.dumps(combined, indent=4))
