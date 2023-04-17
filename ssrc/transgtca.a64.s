@@ -22,7 +22,7 @@
 */
 
 .text
-	.ident transgtca_abi_translate
+	.section transgtca_abi_translate, b
 		.desc transgtca_translate, void transgtca_translate(char *dna, char *lut, char *resultptr)
 		.def
 			.tag void transgtca_translate(char *dna, char *lut, char *resultptr)
@@ -66,104 +66,124 @@
 		3:
 			MCSRR
 
-	.ident transgtca_abi_revtranslate
+	.section transgtca_abi_revtranslate, b
 		.desc transgtca_revtranslate, void transgtca_translate(char *protein, char *lut, unsigned long *freqlut, unsigned long minfreq, char *resultptr)
 		.def
 			.tag transgtca_revtranslate, void transgtca_translate(char *protein, char *lut, unsigned long *freqlut, unsigned long minfreq, char *resultptr)
 		.endef
 		transgtca_revtranslate:
 			MCSRS
+		1:
 			MCZRO REV_LOC_NUC1
 			MCZRO REV_LOC_NUC2
 			MCZRO REV_LOC_NUC3
 			MCZRO REV_LOC_PEPD
-			MCZRO REV_LOC_TMPN
-			MCZRO REV_LOC_NIDX
-		1:
+			MCZRO REV_LOC_ENCD
+			MCZRO REV_LOC_NTRP
+			
 			MCMPI REV_LOC_PEPW, REV_PRT_ADDR, IDT_LDBY, LIT_NUNO
 
 			MCTST REV_LOC_PEPW, REV_LOC_PEPW
 			MCBRC IDT_ISNE, 2f, IDT_ISEQ, 7f
 
 		2:
-			MCSUB REV_LOC_PEPW, REV_LOC_PEPW, LIT_NSQU
-			MCMOF REV_LOC_ENCD, REV_LUT_ADDR, ldr, REV_LOC_PEPD
+			MCSUB REV_LOC_PEPW, REV_LOC_PEPW, LIT_NXQU
+			MCMOF REV_LOC_ENCD, REV_LUT_ADDR, IDT_LDRQ, REV_LOC_PEPD
 
-			MCAND REV_LOC_NTRP, REV_LOC_PEPD, LIT_NUNO5
+			MCAND REV_LOC_NTRP, REV_LOC_NTRP, LIT_NQCM
+
 			MCPSH REV_LOC_NTRP
-			MCPSH REV_LOC_NTRP
-			MCMVI REV_LOC_NTRP, REV_LOC_NTRP
-			MCSSF REV_LOC_NTRP, REV_LOC_NTRP
-			MCSHR REV_LOC_ENCD, REV_LOC_ENCD, REV_LOC_NTRP
+			MCSHL REV_LOC_NTRP, REV_LOC_NTRP, LIT_NUNO
 			MCPOP REV_LOC_NTRP
-			MCSHL REV_LOC_NTRP, REV_LOC_NTRP, LIT_NTRI
-			MCSSP REV_LOC_SSSP
+
+			MCSHL REV_LOC_ENCD, REV_LOC_ENCD, LIT_NDUO
 		3:
+			MCZRO REV_LOC_NUCS
 			MCZRO REV_LOC_TIDX
-			MCSSP REV_LOC_TIDX
-			MCSUB REV_LOC_TIDX, REV_LOC_SSSP, REV_LOC_TIDX
-			MCSHR REV_LOC_TIDX, REV_LOC_TIDX, LIT_NTRI
-			MCSUB REV_LOC_TIDX, REV_LOC_TIDX, LIT_NDUO
-			MCMVI REV_LOC_TIDX, REV_LOC_TIDX
-			MCPSH REV_LOC_ENCD
-			MCXTR REV_LOC_ENCD, REV_LOC_ENCD, #63, REV_LOC_TIDX
 
-			MCXTR REV_LOC_NUC1, REV_LOC_ENCW, LIT_NTRI, LIT_NNIL
-			MCXTR REV_LOC_NUC2, REV_LOC_ENCW, LIT_NTRI, LIT_NUNO2
-			MCXTR REV_LOC_NUC3, REV_LOC_ENCW, LIT_NTRI, LIT_NQAT8   
-
-			MCZRO REV_LOC_TIDX
-			MCORS REV_LOC_TIDW, REV_LOC_NUC1, REV_LOC_NUC2, IDT_SHFL, LIT_NUNO
-			MCXOR REV_LOC_TIDW, REV_LOC_NUC1, REV_LOC_NUC3
-			MCORS REV_LOC_TIDW, REV_LOC_TIDW, REV_LOC_PEPW, IDT_SHFL, LIT_NTRI
-
-			MCPOP REV_LOC_ENCD
+			MCSHR REV_LOC_ENCD, REV_LOC_ENCD, LIT_NSEN
+			MCAND REV_LOC_NUCS, REV_LOC_ENCD, LIT_NXTR
+		
+			MCSHL REV_LOC_TIDX, REV_LOC_PEPD, LIT_NTRI
 			
-			MCMOF REV_LOC_TMPN, REV_FRQ_ADDR, IDT_LDBY, REV_LOC_TIDX
-			MCPSH REV_LOC_TMPN
+			MCPSH REV_LOC_NUCS
+			MCAND REV_LOC_NUCS, REV_LOC_NUCS, LIT_NTRI
+			MCORR REV_LOC_TIDX, REV_LOC_TIDX, REV_LOC_NUCS
+			MCPOP REV_LOC_NUCS
+			
+			MCPSH REV_LOC_NUCS
+			MCAND REV_LOC_NUCS, REV_LOC_NUCS, LIT_NSEN
+			MCSHR REV_LOC_NUCS, REV_LOC_NUCS, LIT_NDUO
+			MCSHL REV_LOC_NUCS, REV_LOC_NUCS, LIT_NUNO
+			MCORR REV_LOC_TIDX, REV_LOC_TIDX, REV_LOC_NUCS
+			MCPOP REV_LOC_NUCS
 
-			MCZRO REV_LOC_TIDX
-			MCSSP REV_LOC_TIDX
-			MCSUB REV_LOC_TIDX, REV_LOC_TIDX, REV_LOC_SSSP
-			MCCMP REV_LOC_TIDX, REV_LOC_NTRP
+			MCPSH REV_LOC_NUCS
+			MCAND REV_LOC_NUCS, REV_LOC_NUCS, LIT_NDOD
+			MCSHR REV_LOC_NUCS, REV_LOC_NUCS, LIT_NQAT
+			MCXOR REV_LOC_TIDX, REV_LOC_TIDX, REV_LOC_NUCS
+			MCPOP REV_LOC_NUCS
+		
+
+			MCZRO REV_LOC_TMPW
+			MCMOF REV_LOC_TMPW, REV_FRQ_ADDR, IDT_LDBY, REV_LOC_TIDW
+			MCORS REV_LOC_TMPX, REV_LOC_TMPX, REV_LOC_NUCS, IDT_SHFL, LIT_NOCT
+			MCPUH REV_LOC_TMPW
+
+			MCTST REV_LOC_ENCD, REV_LOC_ENCD
 			MCBRC IDT_ISEQ, 4f, IDT_ISNE, 3b
 		4:
-			MCSSP REV_LOC_SSSP
+			MCZRO REV_LOC_TIDX
 			MCJMP 5f
 		5:
-			MCPOP REV_LOC_FREQ
+			MCZRO REV_LOC_TMPX
+
+			MCPOH REV_LOC_TMPW
+			MCAND REV_LOC_FREQ, REV_LOC_TMPX, LIT_NCFF
+			MCSHR REV_LOC_NUCS, REV_LOC_TMPX, LIT_NOCT
 			MCCMP REV_LOC_FREQ, REV_FRQ_MINM
-			MCBRC IDT_ISGT, 5b, IDT_ISGT, 6f
+
+			MCBRC IDT_ISLT, 5b, IDT_ISGE, 6f
 		6:
-			MCSHL REV_LOC_NUC1, REV_LOC_NUC1, LIT_NTRI
-			MCSHR REV_LOC_NUC1, ENCODED_NUCS, REV_LOC_NUC1
-			MCAND REV_LOC_NUC1, REV_LOC_NUC1, LIT_NDUO55
+			MCZRO REV_LOC_TMPX
 
-			MCSHL REV_LOC_NUC2, REV_LOC_NUC2, LIT_NTRI
-			MCSHR REV_LOC_NUC2, ENCODED_NUCS, REV_LOC_NUC2
-			MCAND REV_LOC_NUC2, REV_LOC_NUC2, LIT_NDUO55
+			MCPSH REV_LOC_NUCS
+			MCAND REV_LOC_NUCS, REV_LOC_NUCS, LIT_NTRI
+			MCSHL REV_LOC_NUCS, REV_LOC_NUCS, LIT_NTRI
+			MCSHR REV_LOC_NUCS, ENCODED_NUCS, REV_LOC_NUCS
+			MCAND REV_LOC_NUCS, REV_LOC_NUCS, LIT_NCFF
+			MCORS REV_LOC_TMPX, REV_LOC_TMPX, REV_LOC_NUCS, IDT_SHFL, LIT_NVQT
+			MCPOP REV_LOC_NUCS
 
-			MCSHL REV_LOC_NUC3, REV_LOC_NUC3, LIT_NTRI
-			MCSHR REV_LOC_NUC3, ENCODED_NUCS, REV_LOC_NUC3
-			MCAND REV_LOC_NUC3, REV_LOC_NUC3, LIT_NDUO55 
+			MCPSH REV_LOC_NUCS
+			MCANS REV_LOC_NUCS, REV_LOC_NUCS, REV_LOC_NUCS, LIT_NTRI, IDT_SHFR, LIT_NDUO
+			MCSHL REV_LOC_NUCS, REV_LOC_NUCS, LIT_NTRI
+			MCSHR REV_LOC_NUCS, ENCODED_NUCS, REV_LOC_NUCS
+			MCAND REV_LOC_NUCS, REV_LOC_NUCS, LIT_NCFF
+			MCORS REV_LOC_TMPX, REV_LOC_TMPX, REV_LOC_NUCS, IDT_SHFL, LIT_NHEX
+			MCPOP REV_LOC_NUCS
 
-			MCMPI REV_LOC_NUC1, REV_RES_ADDR, IDT_SRBY LIT_NUNO
-			MCMPI REV_LOC_NUC2, REV_RES_ADDR, IDT_SRBY LIT_NUNO
-			MCMPI REV_LOC_NUC3, REV_RES_ADDR, IDT_SRBY LIT_NUNO
+			MCPSH REV_LOC_NUCS
+			MCANS REV_LOC_NUCS, REV_LOC_NUCS, REV_LOC_NUCS, LIT_NTRI, IDT_SHFR, LIT_NQAT
+			MCSHL REV_LOC_NUCS, REV_LOC_NUCS, LIT_NTRI
+			MCSHR REV_LOC_NUCS, ENCODED_NUCS, REV_LOC_NUCS
+			MCAND REV_LOC_NUCS, REV_LOC_NUCS, LIT_NCFF
+			MCORS REV_LOC_TMPX, REV_LOC_TMPX, REV_LOC_NUCS, IDT_SHFL, LIT_NOCT
+			MCPOP REV_LOC_NUCS 
 
-			MCZRO REV_LOC_TIDX
-			MCSSP REV_LOC_TIDX
-			MCSUB REV_LOC_TIDX, REV_LOC_SSSP, REV_LOC_TIDX
+			MCORR REV_LOC_TMPW, REV_LOC_TMPW, LIT_NPIP
+			MCMPI REV_LOC_TMPW, REV_RES_ADDR, IDT_SRFWW, LIT_NQAT
+	
+			MCADD REV_LOC_TIDX, REV_LOC_TIDX, LIT_NUNO
 			MCCMP REV_LOC_TIDX, REV_LOC_NTRP
-			MCBRC IDT_ISEQ, 4f, IDT_ISNE, 3b
-		5:
-			MCSUB REV_RES_ADDR, LIT_NTRI
-			MCJMP 5b
+			MCBRC IDT_ISEQ, 1b, IDT_ISNE, 5b
 		7:
 			MCSRR
 
 .bss
 	.section transgtca_macros, b
+
+
 		.macro mcmov dst, src, 
 			mov \dst, \src
 		.endm
@@ -172,26 +192,14 @@
 			movz \dst, \src
 		.endm
 
-		.macro mcmvs dst, src, shop, shn
-			movk \dst, \src, \shop \shn
-		.endm
-		
 		.macro mcand dst, src, value  
 			and \dst, \src, \value
-		.endm
-
-		.macro mcans dst, src, value, shop, shn  
-			ands \dst, \src, \value, \shop \shn
 		.endm
 
 		.macro mcorr dst, src, value  
 			orr \dst, \src, \value
 		.endm
-
-		.macro mcors dst, src, value, shop, shn  
-			orr \dst, \src, \value, \shop \shn
-		.endm
-
+		
 		.macro mcxor dst, src, value  
 			eor \dst, \src, \value
 		.endm
@@ -216,6 +224,44 @@
 			clz \dst, \value
 		.endm
 
+		.macro mcmvs dst, src, shop, shn
+			movk \dst, \src, \shop \shn
+		.endm
+
+		.macro mcads dst, src, value, shop, shn  
+			add \dst, \src, \value, \shop \shn
+		.endm
+
+		.macro mcsbs dst, src, value, shop, shn  
+			sub \dst, \src, \value, \shop \shn
+		.endm
+
+		.macro mcans dst, src, value, shop, shn  
+			and \dst, \src, \value, \shop \shn
+		.endm
+
+		.macro mcors dst, src, value, shop, shn  
+			orr \dst, \src, \value, \shop \shn
+		.endm
+
+		.macro mcxrs dst, src, value, shop, shn
+			eor \dst, \src, \value, \shop \shn
+		.endm
+
+		.macro mcbrc cond1, jmp1, cond2, jmp2
+			\cond1 \jmp1
+			\cond2 \jmp2
+		.endm
+
+		.macro mcsrr
+			mcpop lr
+			ret
+		.endm
+
+		.macro mcsrs
+			mcpsh lr
+		.endm
+
 		.macro mctst val1, val2
 			tst \val1, \val2
 		.endm
@@ -224,9 +270,8 @@
 			cmp \val1, \val2
 		.endm
 
-		.macro mcbrc cond1, jmp1, cond2, jmp2
-			\cond1 \jmp1
-			\cond2 \jmp2
+		.macro mcjmp label
+			bl \label
 		.endm
 
 		.macro mcmpi dst, addr, lsop, idx
@@ -240,58 +285,64 @@
 		.macro mcmif dst, addr, lsop, offst
 			\lsop \dst, [\addr, \offst]
 		.endm
-
+		
 		.macro mcpsh reg
-			str \reg, [sp, #-8]!
+			str \reg, [sp, LIT_NNCT]!
 		.endm
 
 		.macro mcpop reg
 			ldr \reg, [sp], LIT_NOCT
+		.end
+
+		.macro mcpub reg
+			mcmip \reg, sp, IDT_SRBY, LIT_NNUN
 		.endm
 
-		.macro mcjmp label
-			bl \label
+		.macro mcpob reg
+			mcmpi \reg, sp, IDT_LRBY, LIT_NUNO
+		.endm
+
+		.macro mcpuh reg
+			mcmip \reg, sp, IDT_SRHW, LIT_NNDU
+		.endm
+
+		.macro mcpoh reg
+			mcmpi \reg, sp, IDT_LRHW, LIT_NDUO
+		.endm
+
+		.macro mcdsp value
+			mcsub IDT_SPRG, IDT_SPRG, \value
+		.endm
+
+		.macro mcisp value
+			mcadd IDT_SPRG, IDT_SPRG, \value
 		.endm
 
 		.macro mczro reg
-			eor \reg, \reg, \reg
+			mcxor \reg, \reg, \reg
 		.endm
 
-		.macro mcxtr dst, src, mask, shiftamnt
-			and \dst, \src, \mask
-			lsr \dst, \dst, \shiftamnt
+		.macro mcssp dst
+			mcmvz \dst, sp
 		.endm
 
 		.macro mcmvi dst, src
-			eor \dst, \dst, \dst
+			mcxor \dst, \dst, \dst
 			.rept 2
-				movk \dst, \src, \src, lsl LIT_NUNO
-				add \dst, \dst, \src
+				mcosl \dst, \src, \src, IDT_SHFL, LIT_NUNO
+				mcadd \dst, \dst, \src
 			.endr
 		.endm
 
 		.macro mcssf dst, val
-			lsl \val, \val, LIT_NUNO
-			sub \dst, \val, LIT_NSQT
-			lsr \dst, \dst, LIT_NUNO
-			lsr \val, \val, LIT_NUNO
-		.endm
-
-		.macro mcssp dst
-			mov \dst, sp
-		.endm
-
-		.macro mcsrr
-			MCPOP lr
-			ret
-		.endm
-
-		.macro mcsrs
-			MCPSH lr
+			mcshl \val, \val, LIT_NUNO
+			mcsub \dst, \val, LIT_NXQT
+			\shiftop \dst, \dst, LIT_NUNO
+			mcshl \val, \val, LIT_NUNO
 		.endm
 
 	.section transgtca_aliases, b
-		.ident transgtca_translate_aliases       
+		.section transgtca_translate_aliases, b
 			TRN_DNA_ADDR    .req    x0
 			TRN_LUT_ADDR    .req    x1
 			TRN_RES_ADDR    .req    x2
@@ -302,48 +353,71 @@
 			TRN_LOC_PEPT    .req    w11
 			TRN_LOC_TMPN    .req    w12
 
-		.ident transgtca_revtranslate_aliases            
+		.section transgtca_revtranslate_aliases, b
 			REV_PRT_ADDR    .req    x0
 			REV_LUT_ADDR    .req    x1
 			REV_FRQ_ADDR    .req    x2
 			REV_FRQ_MINM    .req    x3
 			REV_RES_ADDR    .req    x4
-
-			REV_LOC_NUC1    .req    w8
-			REV_LOC_NUC1    .req    w9
-			REV_LOC_NUC2    .req    w10
-			REV_LOC_PEPW    .req    w11
-			REV_LOC_PEPD    .req    x11
-			REV_LOC_ENCD    .req    x12
-			REV_LOC_NTRP    .req    x13
+			
+			REV_LOC_NUCS	.req	x8
+			REV_LOC_PEPW    .req    w9
+			REV_LOC_PEPD    .req    x9
+			REV_LOC_ENCD    .req    x10
+			REV_LOC_ENCW    .req    w10
+			REV_LOC_NTRP    .req    x11
 			REV_LOC_FREQ    .req    w11
-			REV_LOC_SSSP	.req	x6
-			REV_LOC_TIDX	.req	x5
-			REV_LOC_TIDW	.req	x5
-
-		.ident transgtca_global_literals
+			REV_LOC_TIDX	.req	x12
+			REV_LOC_SSSP	.req	x12
+			REV_LOC_TMPX	.req	x13
+			REV_LOC_TMPW	.req	w13
+		
+		.section transgtca_global_literals, b
 			LIT_NNIL		.req	#0
 			LIT_NUNO		.req	#1
 			LIT_NDUO		.req	#2
 			LIT_NTRI		.req	#3
 			LIT_NQAT		.req	#4
+			LIT_NSEN		.req	#6
+			LIT_NSPT		.req	#7
 			LIT_NOCT		.req	#8
-			LIT_NSQT		.req	#64
-			LIT_NSQU		.req	#65
+			LIT_NDOD		.req	#12
+			LIT_NQCM		.req	#15
+			LIT_NHEX		,req	#16
+			LIT_NVQT		.req	#24
+			LIT_NQTO		.req	#48
+			LIT_NXTR		.req	#63
+			LIT_NXQT		.req	#64
+			LIT_NXQU		.req	#65
+			LIT_NPIP		.req	#124
+			LIT_NCFF		.req	#255
+			LIT_NTFZ		.req	#16128
+			LIT_NNUN		.req 	#-1
+			LIT_NNDU		.req	#-2
+			LIT_NNQT		.req	#-4
+			LIT_NNCT		.req	#-8
 		
-		.ident transgtca_global_idents
+		.section transgtca_global_idents, b
 			IDT_ISEQ		.req    b.eq
 			IDT_ISNE		.req 	b.ne
-			IDT_ISGT		.req    b.gt
-			IDT_ISLE		.req 	b.le
+			IDT_ISGE		.req    b.ge
+			IDT_ISLT		.req 	b.lt
 			IDT_LDBY		.req	ldrb
 			IDT_SRBY		.req	strb
+			IDT_LDHW		.req	ldrh
+			IDT_SRHW		.req	strh
+			IDT_LDFW		.req	ldrw
+			IDT_SRFW		.req	strw
 			IDT_SHFL		.req	lsl
+			IDT_SHFR		.req	lsr
+			IDT_LDRQ		.req	ldr
+			IDT_STRQ		.req 	str
+			IDT_SPRG		.req	sp
 
 .data
-	.ident transgtca_magic
+	.section transgtca_magic, b
 		.equ ENCODED_NUCS, 0x47544341
 
-	.ident transgtca_externdec
+	.section transgtca_externdec, b
 		.global transgtca_translate
 		.global transgtca_revtranslate
