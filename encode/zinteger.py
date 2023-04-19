@@ -81,8 +81,8 @@ __DUNDERS_BINARY = {
     "__and__": and_,
     "__or__": or_,
     "__xor__": xor,
-    "__lshiftr__": lshift,
-    "__rshiftr__": rshift,
+    "__lshift__": lshift,
+    "__rshift__": rshift,
     "__lt__": lt,
     "__le__": le,
     "__eq__": eq,
@@ -102,8 +102,8 @@ __DUNDERS_INPLACE = {
     "__iand__": iand,
     "__ior__": ior,
     "__ixor__": ixor,
-    "__ilshiftr__": ilshift,
-    "__irshiftr__": irshift,
+    "__ilshift__": ilshift,
+    "__irshift__": irshift,
 }
 
 
@@ -199,7 +199,7 @@ def __generate_inplace_dunders(_="INPLACE_DUNDERS"):
                     raise TypeError(
                         f"Ilegal operation {op.__name__} between {self.clsname} and {other.__class__.__name__}")
 
-                self = self.clstype(res)
+                self.__integer = self.__tyy(res)
 
             dunderfn.__dict__['op'] = inplace_op
             dunderfn.__name__ = inplace_dunder
@@ -214,6 +214,9 @@ def __generate_inplace_dunders(_="INPLACE_DUNDERS"):
 
 
 def __init_zinteger(self, integer: int, mask=None, warn=True, abort=False):
+    if type(integer) not in [self.cty, self.sty, int]:
+        raise TypeError(f"Unallowed type for {self.clsname}: {type(integer)}")
+
     integer &= mask if integer >= 0 else integer
 
     if warn or abort:
@@ -228,7 +231,7 @@ def __init_zinteger(self, integer: int, mask=None, warn=True, abort=False):
             print(f"Exiting due to {do_exit}...")
             exit(1)
 
-    self.__integer = self.ctype(integer)
+    self.__integer = self.cty(integer.value) if type(integer) in [self.cty, self.sty] else self.cty(integer) 
 
 
 def __inst_zinteger(self, other) -> bool:
@@ -248,7 +251,7 @@ def __inst_zinteger(self, other) -> bool:
 
 
 def __repr_zinteger(self) -> str:
-    return f"<'Zinteger.{self.clsname}; Mapped={self.ctyname}; Value={self.val}'>"
+    return str(self.val)
 
 
 def __strn_zinteger(self) -> str:
@@ -289,6 +292,8 @@ def __gtvl_zinteger(self, name: str) -> int:
         return self.__min
     elif name.startswith("max"):
         return self.__max
+    elif name.startswith("sty"):
+        return type(self)
     elif name.startswith("nb"):
         return len(format(self.__max, "b"))
     elif name.startswith("test"):
@@ -314,16 +319,16 @@ def __test_zinteger(self):
         hex, bin, oct, hash
     ]
 
-    shiftr_nbits = cls_nbit << 3
-    shiftr_maxim_int = cls_maxm << shiftr_nbits
-    shiftr_minim_int = cls_minm << shiftr_nbits
-    shiftr_maxim_obj = cls_self(shiftr_maxim_int)
-    shiftr_minim_obj = cls_self(shiftr_minim_int)
+    shift_nbits = cls_nbit << 3
+    shift_maxim_int = cls_maxm << shift_nbits
+    shift_minim_int = cls_minm << shift_nbits
+    shift_maxim_obj = cls_self(shift_maxim_int)
+    shift_minim_obj = cls_self(shift_minim_int)
 
     for op in operators:
-        eval_int = eval(f"shiftr_maxim_int {op} shiftr_minim_int")
-        eval_obj = eval(f"shiftr_maxim_obj {op} shiftr_minim_obj")
-        eval_min = eval(f"shiftr_maxim_int {op} shiftr_minim_obj")
+        eval_int = eval(f"shift_maxim_int {op} shift_minim_int")
+        eval_obj = eval(f"shift_maxim_obj {op} shift_minim_obj")
+        eval_min = eval(f"shift_maxim_int {op} shift_minim_obj")
 
         if eval_int == eval_obj.int == eval_min.val:
             print(f"{op} ok for {cls_name}")
@@ -331,8 +336,8 @@ def __test_zinteger(self):
             print(f"{op} fail for {cls_name}")
 
     for fn in functions:
-        eval_int = fn(shiftr_maxim_int)
-        eval_obj = fn(shiftr_minim_int)
+        eval_int = fn(shift_maxim_int)
+        eval_obj = fn(shift_minim_int)
 
         if eval_int == eval_obj:
             print(f"{fn} ok for {cls_name}")
